@@ -12,6 +12,7 @@ eval_freq: 50000
 
 # BMPC config
 bmpc: true
+activation: 0 # chage activation function 
 ## logging
 use_tensorboard: true
 eval_pi: false

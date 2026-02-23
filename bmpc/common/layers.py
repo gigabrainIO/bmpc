@@ -96,11 +96,18 @@ class NormedLinear(nn.Linear):
 	Linear layer with LayerNorm, activation, and optionally dropout.
 	"""
 
-	def __init__(self, *args, dropout=0., act=None, **kwargs):
+	def __init__(self, *args, dropout=0., act=None, cfg=None, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.ln = nn.LayerNorm(self.out_features)
+		activations = [nn.sMish(inplace=False), nn.ReLU(), nn.GELU(),
+			nn.Softplus(),nn.SiLU(),nn.ELU(),
+			nn.CELU(),nn.SELU(),nn.Softsign(),
+			nn.Sigmoid(),nn.PReLU()]
 		if act is None:
-			act = nn.Mish(inplace=False)
+			if cfg is not None and cfg.activation is not None:
+				act = activations[cfg.activation]
+			else:
+				act = nn.Mish(inplace=False)
 		self.act = act
 		self.dropout = nn.Dropout(dropout, inplace=False) if dropout else None
 
@@ -118,7 +125,7 @@ class NormedLinear(nn.Linear):
 			f"act={self.act.__class__.__name__})"
 
 
-def mlp(in_dim, mlp_dims, out_dim, act=None, dropout=0.):
+def mlp(in_dim, mlp_dims, out_dim, act=None, dropout=0., cfg=None):
 	"""
 	Basic building block of TD-MPC2.
 	MLP with LayerNorm, Mish activations, and optionally dropout.
@@ -128,8 +135,8 @@ def mlp(in_dim, mlp_dims, out_dim, act=None, dropout=0.):
 	dims = [in_dim] + mlp_dims + [out_dim]
 	mlp = nn.ModuleList()
 	for i in range(len(dims) - 2):
-		mlp.append(NormedLinear(dims[i], dims[i+1], dropout=dropout*(i==0)))
-	mlp.append(NormedLinear(dims[-2], dims[-1], act=act) if act else nn.Linear(dims[-2], dims[-1]))
+		mlp.append(NormedLinear(dims[i], dims[i+1], dropout=dropout*(i==0), cfg=cfg))
+	mlp.append(NormedLinear(dims[-2], dims[-1], act=act, cfg=cfg) if act else nn.Linear(dims[-2], dims[-1]))
 	return nn.Sequential(*mlp)
 
 
