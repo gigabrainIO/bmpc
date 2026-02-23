@@ -53,13 +53,20 @@ def train(cfg: dict):
 
 	trainer_cls = OfflineTrainer if cfg.multitask else OnlineTrainer
 	logger_cls = TBLogger if cfg.use_tensorboard else Logger
+	env = make_env(cfg)
 	agent_cls = BMPC if cfg.bmpc else TDMPC2
+	agent = agent_cls(cfg)
+	logger = logger_cls(cfg)
+	buffer = Buffer(cfg)
+	if cfg.checkpoint != "???":
+		assert os.path.exists(cfg.checkpoint), f'Checkpoint {cfg.checkpoint} not found! Must be a valid filepath.'
+		agent.load(cfg.checkpoint)
 	trainer = trainer_cls(
 		cfg=cfg,
-		env=make_env(cfg),
-		agent=agent_cls(cfg),
-		buffer=Buffer(cfg),
-		logger=logger_cls(cfg),
+		env=env,
+		agent=agent,
+		buffer=buffer,
+		logger=logger,
 	)
 	save_cfg(cfg, cfg.work_dir) # save parsed config, must do it after the Logger's init
 	trainer.train()

@@ -6,6 +6,8 @@ from common.scale import RunningScale
 from common.world_model import WorldModel
 from common.layers import api_model_conversion
 from tensordict import TensorDict
+import cloudpickle as pickle
+from pathlib import Path
 
 
 class BMPC(torch.nn.Module):
@@ -76,6 +78,12 @@ class BMPC(torch.nn.Module):
 			fp (str): Filepath to save state dict to.
 		"""
 		torch.save({"model": self.model.state_dict()}, fp)
+		pickle.dump({"optim": self.optim, 
+			"pi_optim":self.pi_optim,"scale": self.scale, 
+			"discount": self.discount, 
+			"_prev_mean": self._prev_mean, 
+			"torch_seed": torch.get_rng_state()}, 
+			file=open(fp.with_name("optimizers.pickle"), 'wb'))
 
 	def load(self, fp):
 		"""
@@ -88,6 +96,17 @@ class BMPC(torch.nn.Module):
 		state_dict = state_dict["model"] if "model" in state_dict else state_dict
 		state_dict = api_model_conversion(self.model.state_dict(), state_dict)
 		self.model.load_state_dict(state_dict)
+
+		try:
+			optimization = pickle.load(open(Path(fp).with_name("optimizers.pickle"), 'rb'))
+			self.optim = optimization["optim"]
+			self.pi_optim = optimization["pi_optim"]
+			self.scale = optimization["scale"]
+			self.discount = optimization["discount"]
+			self._prev_mean = optimization["_prev_mean"]
+			torch.set_rng_state(optimization['torch_seed'])
+		except:
+			print("Optimization file optimizers.pickle not found.")
 		return
 
 	@torch.no_grad()
